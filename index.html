@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>4지선다 영단어 퀴즈 - 모드 선택 (정답 개수 표시)</title>
+  <style>
+    /* 기본 스타일 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #f0f0f0, #bbb);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #333;
+    }
+
+    /* 화면 전반 컨테이너 */
+    .quiz-container {
+      background: rgba(255,255,255,0.9);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      padding: 20px 30px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    /* 시작 화면 */
+    .start-screen {
+      display: none; /* JS에서 보이도록 제어 */
+      flex-direction: column;
+      align-items: center;
+    }
+    .mode-button {
+      display: inline-block;
+      padding: 12px 16px;
+      margin: 8px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #666;
+      color: #fff;
+    }
+    .mode-button:hover {
+      background: #888;
+    }
+
+    /* 퀴즈 화면 */
+    .quiz-screen {
+      display: none;
+    }
+    .question {
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+    }
+    .choices {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin: 0 auto 20px auto;
+      width: 80%;
+      gap: 8px;
+    }
+    .choice-item {
+      background: #eee;
+      border-radius: 4px;
+      padding: 8px;
+      width: 100%;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .choice-item:hover {
+      background: #ddd;
+    }
+    .choice-item input {
+      margin-right: 8px;
+      cursor: pointer;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 16px;
+      margin: 4px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #666;
+      color: #fff;
+    }
+    .btn:hover {
+      background: #888;
+    }
+
+    .message {
+      margin-top: 12px;
+      font-weight: bold;
+      min-height: 1.5em;
+    }
+    .message.correct {
+      color: green;
+    }
+    .message.wrong {
+      color: red;
+    }
+
+    .progress {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<div class="quiz-container">
+  <!-- ================================
+       1) 시작 화면 (모드 선택)
+  ================================== -->
+  <div class="start-screen" id="startScreen" style="display: flex;">
+    <h1>영단어 퀴즈</h1>
+    <p>어떤 퀴즈를 풀까요?</p>
+    <button class="mode-button" id="modeE2K">영어 → 한국어</button>
+    <button class="mode-button" id="modeK2E">한국어 → 영어</button>
+  </div>
+
+  <!-- ================================
+       2) 퀴즈 화면
+  ================================== -->
+  <div class="quiz-screen" id="quizScreen">
+    <h1 id="quizTitle">퀴즈</h1>
+    <!-- 문제 영역 -->
+    <div class="question" id="questionText">문제</div>
+
+    <!-- 보기 영역 -->
+    <div class="choices" id="choicesContainer">
+      <!-- JS에서 동적으로 4개 선택지를 채워넣음 -->
+    </div>
+
+    <!-- 버튼들 -->
+    <div>
+      <button class="btn" id="checkButton">정답 확인</button>
+      <button class="btn" id="nextButton">다음 문제</button>
+    </div>
+
+    <!-- 결과 메시지 -->
+    <div class="message" id="messageBox"></div>
+
+    <!-- 진행도 표시 -->
+    <div class="progress" id="progressBox"></div>
+  </div>
+</div>
+
+<script>
+  // ======================
+  // 1) 단어 데이터
+  // ======================
+  // 실제로는 800개까지 확장 가능
+  // { english: "단어", meaning: "뜻" }
+  const words = [
+    { english: "apple",   meaning: "사과" },
+    { english: "cat",     meaning: "고양이" },
+    { english: "banana",  meaning: "바나나" },
+    { english: "rabbit",  meaning: "토끼" },
+    { english: "library", meaning: "도서관" },
+    { english: "water",   meaning: "물" },
+    { english: "teacher", meaning: "선생님" },
+  ];
+
+  // ======================
+  // 2) 상태 & DOM 요소
+  // ======================
+  let quizMode = null;      // "E2K" 또는 "K2E"
+  let currentIndex = 0;     // 현재 문제 번호
+  let score = 0;            // 맞힌 문제 수
+
+  const startScreen      = document.getElementById('startScreen');
+  const modeE2KButton    = document.getElementById('modeE2K');
+  const modeK2EButton    = document.getElementById('modeK2E');
+
+  const quizScreen       = document.getElementById('quizScreen');
+  const quizTitle        = document.getElementById('quizTitle');
+  const questionText     = document.getElementById('questionText');
+  const choicesContainer = document.getElementById('choicesContainer');
+  const checkButton      = document.getElementById('checkButton');
+  const nextButton       = document.getElementById('nextButton');
+  const messageBox       = document.getElementById('messageBox');
+  const progressBox      = document.getElementById('progressBox');
+
+  // ======================
+  // 3) 모드 선택
+  // ======================
+  modeE2KButton.addEventListener('click', () => {
+    quizMode = "E2K";  // 영어 -> 한국어
+    startQuiz();
+  });
+  modeK2EButton.addEventListener('click', () => {
+    quizMode = "K2E";  // 한국어 -> 영어
+    startQuiz();
+  });
+
+  function startQuiz() {
+    // 시작 화면 숨기고, 퀴즈 화면 보이기
+    startScreen.style.display = "none";
+    quizScreen.style.display  = "block";
+    currentIndex = 0;
+    score = 0;  // 맞힌 개수 초기화
+
+    // 퀴즈 제목
+    if (quizMode === "E2K") {
+      quizTitle.textContent = "영어 → 한국어 퀴즈";
+    } else {
+      quizTitle.textContent = "한국어 → 영어 퀴즈";
+    }
+
+    // 첫 문제 로드
+    loadQuestion(currentIndex);
+  }
+
+  // ======================
+  // 4) 문제 로드 함수
+  // ======================
+  function loadQuestion(index) {
+    // 모든 문제를 다 푼 경우 (index >= words.length)
+    if (index >= words.length) {
+      questionText.textContent = "모든 문제를 다 풀었습니다!";
+      choicesContainer.innerHTML = "";
+      // 최종 결과 메시지
+      messageBox.textContent = `수고하셨습니다! (총 ${words.length}문제 중 ${score}개 정답)`;
+      messageBox.className = "message correct";
+      progressBox.textContent = `${words.length} / ${words.length}`;
+      return;
+    }
+
+    // 초기화
+    messageBox.textContent = "";
+    messageBox.className = "message";
+
+    // 현재 문제
+    const currentWord = words[index];
+    // ======================
+    // 모드에 따라 문제/정답/오답 설정
+    // ======================
+    let questionTextStr   = "";
+    let correctAnswer     = "";
+    let wrongAnswerPool   = [];
+
+    if (quizMode === "E2K") {
+      // 문제: 영어, 정답: 한국어
+      questionTextStr = `Q. "${currentWord.english}" 의 뜻은 무엇일까요?`;
+      correctAnswer   = currentWord.meaning;
+      // 오답 후보: 다른 단어들의 meaning
+      wrongAnswerPool = words
+        .filter((w, i) => i !== index)
+        .map(w => w.meaning);
+    } else {
+      // 문제: 한국어, 정답: 영어
+      questionTextStr = `Q. "${currentWord.meaning}" 의 영어 단어는?`;
+      correctAnswer   = currentWord.english;
+      // 오답 후보: 다른 단어들의 english
+      wrongAnswerPool = words
+        .filter((w, i) => i !== index)
+        .map(w => w.english);
+    }
+
+    // 문제 표시
+    questionText.textContent = questionTextStr;
+
+    // 오답 3개를 무작위 추출
+    const wrongOptions = [];
+    while (wrongOptions.length < 3 && wrongAnswerPool.length > 0) {
+      const rIndex = Math.floor(Math.random() * wrongAnswerPool.length);
+      const choice = wrongAnswerPool[rIndex];
+      if (!wrongOptions.includes(choice)) {
+        wrongOptions.push(choice);
+      }
+    }
+
+    // 정답 + 오답 합쳐서 4개
+    let options = [correctAnswer, ...wrongOptions];
+
+    // 셔플(무작위 순서)
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+
+    // DOM에 보기 표시
+    choicesContainer.innerHTML = "";
+    options.forEach((text, idx) => {
+      const choiceId = `choice-${idx}`;
+      const label = document.createElement('label');
+      label.className = 'choice-item';
+      label.htmlFor = choiceId;
+
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'quizChoice';
+      input.id = choiceId;
+      input.value = text;
+
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(text));
+      choicesContainer.appendChild(label);
+    });
+
+    // 진행도 표시
+    progressBox.textContent = `${index + 1} / ${words.length}`;
+  }
+
+  // ======================
+  // 5) 정답 확인
+  // ======================
+  function checkAnswer() {
+    // 이미 끝났으면 무시
+    if (currentIndex >= words.length) {
+      return;
+    }
+
+    // 현재 문제 정답 구하기
+    const currentWord = words[currentIndex];
+    let correctAnswer = "";
+    if (quizMode === "E2K") {
+      correctAnswer = currentWord.meaning; 
+    } else {
+      correctAnswer = currentWord.english;
+    }
+
+    // 라디오 선택 확인
+    const selected = document.querySelector('input[name="quizChoice"]:checked');
+    if (!selected) {
+      messageBox.textContent = "보기 중 하나를 선택하세요.";
+      messageBox.className = "message wrong";
+      return;
+    }
+
+    // 정답 비교
+    const userAnswer = selected.value;
+    if (userAnswer === correctAnswer) {
+      messageBox.textContent = "정답입니다!";
+      messageBox.className = "message correct";
+      score++; // 맞힘 개수 증가
+    } else {
+      messageBox.textContent = `오답입니다! 정답: "${correctAnswer}"`;
+      messageBox.className = "message wrong";
+    }
+  }
+
+  // ======================
+  // 6) 다음 문제
+  // ======================
+  function goNext() {
+    // 다음 문제 인덱스로
+    currentIndex++;
+    loadQuestion(currentIndex);
+  }
+
+  // ======================
+  // 7) 이벤트 연결
+  // ======================
+  checkButton.addEventListener('click', checkAnswer);
+  nextButton.addEventListener('click', goNext);
+
+  // 처음 페이지가 열리면 시작 화면이 표시되도록
+  // (.start-screen의 style="display:flex" 설정으로 이미 표시)
+</script>
+
+</body>
+</html>
