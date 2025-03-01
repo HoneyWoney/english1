@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>4지선다 영단어 퀴즈 - 랜덤출제 + 모드 선택 + 점수</title>
+  <title>4지선다 영단어 퀴즈 - 랜덤 + 모드 + 점수 + 처음으로</title>
   <style>
     /* 기본 스타일 */
     html, body {
@@ -34,7 +34,7 @@
 
     /* 시작 화면 */
     .start-screen {
-      display: none; /* JS에서 보이도록 제어 */
+      display: none; /* JS에서 보여주도록 제어 */
       flex-direction: column;
       align-items: center;
     }
@@ -123,7 +123,7 @@
 
 <div class="quiz-container">
   <!-- ================================
-       1) 시작 화면 (모드 선택)
+       (1) 시작 화면 (모드 선택)
   ================================== -->
   <div class="start-screen" id="startScreen" style="display: flex;">
     <h1>영단어 퀴즈</h1>
@@ -133,7 +133,7 @@
   </div>
 
   <!-- ================================
-       2) 퀴즈 화면
+       (2) 퀴즈 화면
   ================================== -->
   <div class="quiz-screen" id="quizScreen">
     <h1 id="quizTitle">퀴즈</h1>
@@ -156,12 +156,17 @@
 
     <!-- 진행도 표시 -->
     <div class="progress" id="progressBox"></div>
+
+    <!-- (추가) 처음으로 버튼 (기본은 숨김 상태) -->
+    <div>
+      <button class="btn" id="restartButton" style="display: none;">처음으로</button>
+    </div>
   </div>
 </div>
 
 <script>
   // ======================
-  // 1) 단어 데이터
+  // (A) 단어 데이터
   // ======================
   // 실제로는 800개까지 확장 가능
   // { english: "단어", meaning: "뜻" }
@@ -173,13 +178,13 @@
     { english: "library", meaning: "도서관" },
     { english: "water",   meaning: "물" },
     { english: "teacher", meaning: "선생님" },
-    // ... 여기서부터 800개까지 확장 가능
+    // ... 800개로 확장 가능
   ];
 
   // ======================
-  // 2) 상태 & DOM 요소
+  // (B) 상태 & DOM 요소
   // ======================
-  let quizMode = null;      // "E2K" 또는 "K2E"
+  let quizMode = null;      // "E2K" (영->한) 또는 "K2E" (한->영)
   let currentIndex = 0;     // 현재 문제 번호
   let score = 0;            // 맞힌 문제 수
 
@@ -195,9 +200,10 @@
   const nextButton       = document.getElementById('nextButton');
   const messageBox       = document.getElementById('messageBox');
   const progressBox      = document.getElementById('progressBox');
+  const restartButton    = document.getElementById('restartButton'); // 처음으로 버튼
 
   // ======================
-  // 3) 모드 선택
+  // (C) 모드 선택
   // ======================
   modeE2KButton.addEventListener('click', () => {
     quizMode = "E2K";  // 영어 -> 한국어
@@ -212,10 +218,13 @@
     // 시작 화면 숨기고, 퀴즈 화면 보이기
     startScreen.style.display = "none";
     quizScreen.style.display  = "block";
-    currentIndex = 0;
-    score = 0;  // 맞힌 개수 초기화
 
-    // **(중요) words 배열을 무작위로 섞어서 랜덤 출제**
+    // 버튼 및 변수 초기화
+    restartButton.style.display = "none"; 
+    currentIndex = 0;
+    score = 0;
+
+    // words 배열 무작위 셔플
     shuffleArray(words);
 
     // 퀴즈 제목
@@ -230,44 +239,46 @@
   }
 
   // ======================
-  // 4) 문제 로드 함수
+  // (D) 문제 로드 함수
   // ======================
   function loadQuestion(index) {
-    // 모든 문제를 다 푼 경우
     if (index >= words.length) {
+      // 모든 문제 끝
       questionText.textContent = "모든 문제를 다 풀었습니다!";
       choicesContainer.innerHTML = "";
-      // 최종 결과 메시지
       messageBox.textContent = `수고하셨습니다! (총 ${words.length}문제 중 ${score}개 정답)`;
       messageBox.className = "message correct";
       progressBox.textContent = `${words.length} / ${words.length}`;
+
+      // (추가) 처음으로 버튼 보이기
+      restartButton.style.display = "inline-block";
       return;
     }
 
     // 초기화
     messageBox.textContent = "";
     messageBox.className = "message";
+    restartButton.style.display = "none";
 
     // 현재 문제
     const currentWord = words[index];
-    // 모드별 문제/정답 설정
+
     let questionTextStr   = "";
     let correctAnswer     = "";
     let wrongAnswerPool   = [];
 
+    // 모드에 따라 문제/정답 결정
     if (quizMode === "E2K") {
-      // 문제: 영어, 정답: 한국어
       questionTextStr = `Q. "${currentWord.english}" 의 뜻은?`;
       correctAnswer   = currentWord.meaning;
-      // 오답 후보: 다른 단어들의 meaning
+      // 오답 후보: 나머지 단어들의 meaning
       wrongAnswerPool = words
         .filter((w, i) => i !== index)
         .map(w => w.meaning);
     } else {
-      // 문제: 한국어, 정답: 영어
       questionTextStr = `Q. "${currentWord.meaning}" 의 영어는?`;
       correctAnswer   = currentWord.english;
-      // 오답 후보: 다른 단어들의 english
+      // 오답 후보: 나머지 단어들의 english
       wrongAnswerPool = words
         .filter((w, i) => i !== index)
         .map(w => w.english);
@@ -276,7 +287,7 @@
     // 문제 표시
     questionText.textContent = questionTextStr;
 
-    // 오답 3개를 무작위 추출
+    // 오답 3개 무작위 선택
     const wrongOptions = [];
     while (wrongOptions.length < 3 && wrongAnswerPool.length > 0) {
       const rIndex = Math.floor(Math.random() * wrongAnswerPool.length);
@@ -289,13 +300,13 @@
     // 정답 + 오답 합쳐서 4개
     let options = [correctAnswer, ...wrongOptions];
 
-    // 셔플(무작위 순서)
+    // 선택지 셔플
     for (let i = options.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [options[i], options[j]] = [options[j], options[i]];
     }
 
-    // DOM에 보기 표시
+    // DOM에 표시
     choicesContainer.innerHTML = "";
     options.forEach((text, idx) => {
       const choiceId = `choice-${idx}`;
@@ -314,23 +325,24 @@
       choicesContainer.appendChild(label);
     });
 
-    // 진행도 표시
+    // 진행도
     progressBox.textContent = `${index + 1} / ${words.length}`;
   }
 
   // ======================
-  // 5) 정답 확인
+  // (E) 정답 확인
   // ======================
   function checkAnswer() {
-    if (currentIndex >= words.length) return; // 이미 끝났음
+    if (currentIndex >= words.length) {
+      return; // 이미 끝
+    }
 
-    // 현재 문제 정답
     const currentWord = words[currentIndex];
-    let correctAnswer = (quizMode === "E2K") 
-      ? currentWord.meaning 
+    let correctAnswer = (quizMode === "E2K")
+      ? currentWord.meaning
       : currentWord.english;
 
-    // 라디오 선택 확인
+    // 선택된 보기
     const selected = document.querySelector('input[name="quizChoice"]:checked');
     if (!selected) {
       messageBox.textContent = "보기 중 하나를 선택하세요.";
@@ -338,12 +350,11 @@
       return;
     }
 
-    // 정답 비교
     const userAnswer = selected.value;
     if (userAnswer === correctAnswer) {
       messageBox.textContent = "정답입니다!";
       messageBox.className = "message correct";
-      score++; // 맞힌 개수 증가
+      score++;
     } else {
       messageBox.textContent = `오답입니다! 정답: "${correctAnswer}"`;
       messageBox.className = "message wrong";
@@ -351,7 +362,7 @@
   }
 
   // ======================
-  // 6) 다음 문제
+  // (F) 다음 문제
   // ======================
   function goNext() {
     currentIndex++;
@@ -359,24 +370,30 @@
   }
 
   // ======================
-  // 7) 이벤트 연결
+  // (G) 처음으로(다시 시작)
+  // ======================
+  function restartQuiz() {
+    // 퀴즈 화면 숨기고, 시작 화면 보이기
+    quizScreen.style.display  = "none";
+    startScreen.style.display = "flex";
+  }
+
+  // ======================
+  // (H) 이벤트 연결
   // ======================
   checkButton.addEventListener('click', checkAnswer);
   nextButton.addEventListener('click', goNext);
+  restartButton.addEventListener('click', restartQuiz);
 
-  // ======================
-  // 8) 배열 셔플 함수
-  // ======================
+  // 배열 셔플 함수 (피셔–예이츠)
   function shuffleArray(arr) {
-    // 피셔-예이츠(Fisher–Yates) 셔플
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
   }
 
-  // 초기에는 시작 화면(.start-screen)이 표시되도록 설정
-  // (CSS에서 style="display:flex"로 설정)
+  // 기본으로 시작 화면이 보이도록 (스타일에 display:flex 설정)
 </script>
 
 </body>
