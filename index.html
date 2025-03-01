@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>4지선다 영단어 퀴즈 - 모드 선택 (정답 개수 표시)</title>
+  <title>4지선다 영단어 퀴즈 - 랜덤출제 + 모드 선택 + 점수</title>
   <style>
     /* 기본 스타일 */
     html, body {
@@ -173,6 +173,7 @@
     { english: "library", meaning: "도서관" },
     { english: "water",   meaning: "물" },
     { english: "teacher", meaning: "선생님" },
+    // ... 여기서부터 800개까지 확장 가능
   ];
 
   // ======================
@@ -214,6 +215,9 @@
     currentIndex = 0;
     score = 0;  // 맞힌 개수 초기화
 
+    // **(중요) words 배열을 무작위로 섞어서 랜덤 출제**
+    shuffleArray(words);
+
     // 퀴즈 제목
     if (quizMode === "E2K") {
       quizTitle.textContent = "영어 → 한국어 퀴즈";
@@ -229,7 +233,7 @@
   // 4) 문제 로드 함수
   // ======================
   function loadQuestion(index) {
-    // 모든 문제를 다 푼 경우 (index >= words.length)
+    // 모든 문제를 다 푼 경우
     if (index >= words.length) {
       questionText.textContent = "모든 문제를 다 풀었습니다!";
       choicesContainer.innerHTML = "";
@@ -246,16 +250,14 @@
 
     // 현재 문제
     const currentWord = words[index];
-    // ======================
-    // 모드에 따라 문제/정답/오답 설정
-    // ======================
+    // 모드별 문제/정답 설정
     let questionTextStr   = "";
     let correctAnswer     = "";
     let wrongAnswerPool   = [];
 
     if (quizMode === "E2K") {
       // 문제: 영어, 정답: 한국어
-      questionTextStr = `Q. "${currentWord.english}" 의 뜻은 무엇일까요?`;
+      questionTextStr = `Q. "${currentWord.english}" 의 뜻은?`;
       correctAnswer   = currentWord.meaning;
       // 오답 후보: 다른 단어들의 meaning
       wrongAnswerPool = words
@@ -263,7 +265,7 @@
         .map(w => w.meaning);
     } else {
       // 문제: 한국어, 정답: 영어
-      questionTextStr = `Q. "${currentWord.meaning}" 의 영어 단어는?`;
+      questionTextStr = `Q. "${currentWord.meaning}" 의 영어는?`;
       correctAnswer   = currentWord.english;
       // 오답 후보: 다른 단어들의 english
       wrongAnswerPool = words
@@ -320,19 +322,13 @@
   // 5) 정답 확인
   // ======================
   function checkAnswer() {
-    // 이미 끝났으면 무시
-    if (currentIndex >= words.length) {
-      return;
-    }
+    if (currentIndex >= words.length) return; // 이미 끝났음
 
-    // 현재 문제 정답 구하기
+    // 현재 문제 정답
     const currentWord = words[currentIndex];
-    let correctAnswer = "";
-    if (quizMode === "E2K") {
-      correctAnswer = currentWord.meaning; 
-    } else {
-      correctAnswer = currentWord.english;
-    }
+    let correctAnswer = (quizMode === "E2K") 
+      ? currentWord.meaning 
+      : currentWord.english;
 
     // 라디오 선택 확인
     const selected = document.querySelector('input[name="quizChoice"]:checked');
@@ -347,7 +343,7 @@
     if (userAnswer === correctAnswer) {
       messageBox.textContent = "정답입니다!";
       messageBox.className = "message correct";
-      score++; // 맞힘 개수 증가
+      score++; // 맞힌 개수 증가
     } else {
       messageBox.textContent = `오답입니다! 정답: "${correctAnswer}"`;
       messageBox.className = "message wrong";
@@ -358,7 +354,6 @@
   // 6) 다음 문제
   // ======================
   function goNext() {
-    // 다음 문제 인덱스로
     currentIndex++;
     loadQuestion(currentIndex);
   }
@@ -369,8 +364,19 @@
   checkButton.addEventListener('click', checkAnswer);
   nextButton.addEventListener('click', goNext);
 
-  // 처음 페이지가 열리면 시작 화면이 표시되도록
-  // (.start-screen의 style="display:flex" 설정으로 이미 표시)
+  // ======================
+  // 8) 배열 셔플 함수
+  // ======================
+  function shuffleArray(arr) {
+    // 피셔-예이츠(Fisher–Yates) 셔플
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  // 초기에는 시작 화면(.start-screen)이 표시되도록 설정
+  // (CSS에서 style="display:flex"로 설정)
 </script>
 
 </body>
